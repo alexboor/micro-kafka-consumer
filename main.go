@@ -61,12 +61,6 @@ func initConsumer() sarama.Consumer {
 		panic(err)
 	}
 
-	defer func() {
-		if err := master.Close(); err != nil {
-			panic(err)
-		}
-	}()
-
 	return master
 }
 
@@ -79,26 +73,27 @@ func consume(topics []string, master sarama.Consumer) (chan *sarama.ConsumerMess
 			continue
 		}
 
-		partitions, _ := master.Partitions(t)
+		partitions, err := master.Partitions(t)
+		if err != nil {
+			fmt.Println("error get partitions: ")
+			panic(err)
+		}
 
 		for k, _ := range partitions {
 
 			c, err := master.ConsumePartition(t, partitions[k], sarama.OffsetOldest)
 			if err != nil {
 				fmt.Printf("Topic: %d Partition: %d", t, partitions[k])
-				fmt.Println(err)
+				panic(err)
 			}
-			fmt.Println("consuming messages...")
 
 			go func(t string, c sarama.PartitionConsumer) {
 				for {
 					select {
 					case consumerError := <-c.Errors():
 						errors <- consumerError
-						fmt.Println("consume error: ", err)
 					case msg := <-c.Messages():
 						consumers <- msg
-						processMsg(msg)
 					}
 				}
 			}(t, c)
@@ -111,6 +106,6 @@ func consume(topics []string, master sarama.Consumer) (chan *sarama.ConsumerMess
 
 func processMsg(msg *sarama.ConsumerMessage) {
 	fmt.Printf("[%d]: Key: %s\n", msg.Offset, msg.Key)
-	fmt.Printf("%+v\n", msg.Value)
+	fmt.Printf("%+v\n", string(msg.Value))
 	fmt.Printf("-----\n")
 }
