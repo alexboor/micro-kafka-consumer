@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/Shopify/sarama"
 	"log"
@@ -46,6 +47,7 @@ func main() {
 
 }
 
+// Init master client and return it
 func initConsumer() sarama.Consumer {
 	sarama.Logger = log.New(os.Stdout, "", log.Ltime)
 
@@ -64,6 +66,8 @@ func initConsumer() sarama.Consumer {
 	return master
 }
 
+// Consume messages from given topic with given master client
+// Return two channels for successful consumed messages and for errors
 func consume(topics []string, master sarama.Consumer) (chan *sarama.ConsumerMessage, chan *sarama.ConsumerError) {
 	consumers := make(chan *sarama.ConsumerMessage)
 	errors := make(chan *sarama.ConsumerError)
@@ -104,8 +108,14 @@ func consume(topics []string, master sarama.Consumer) (chan *sarama.ConsumerMess
 	return consumers, errors
 }
 
+// Human readable output of the given message
 func processMsg(msg *sarama.ConsumerMessage) {
-	fmt.Printf("[%d]: Key: %s\n", msg.Offset, msg.Key)
-	fmt.Printf("%+v\n", string(msg.Value))
+	var str interface{}
+	if err := json.Unmarshal(msg.Value, &str); err != nil {
+	}
+	s, _ := json.MarshalIndent(str, "", "  ")
+
+	fmt.Printf("Offset: %d Key: %s\n", msg.Offset, msg.Key)
+	fmt.Printf("%s\n", s)
 	fmt.Printf("-----\n")
 }
